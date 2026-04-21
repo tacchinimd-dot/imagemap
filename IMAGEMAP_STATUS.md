@@ -1,6 +1,6 @@
 # 라인 × 핏 매트릭스 (Image Map) — 작업 현황
 
-> **마지막 업데이트:** 2026-04-21 (제외만 보기 필터 · 디자이너 PICK 탭/체크박스 추가 · Lacoste 원본 해상도 재다운로드 스크립트)
+> **마지막 업데이트:** 2026-04-21 오후 (GitHub Pages 배포 · 필터 UX 레전드 박스 독립 다중 토글로 개편 · Alo/Lulu 누끼 경로 회귀 수정 + 누락분 8건 추가 추출)
 > **위치:** `C:\Users\AD0903\imagemap\` (스크립트·산출물·xlsx) / `C:\Users\AD0903\brand_crawler\` (raw 데이터·캐시·스틸컷)
 > **Git 레포:** [tacchinimd-dot/imagemap](https://github.com/tacchinimd-dot/imagemap) (2026-04-21 분리)
 > **/imagemap 커맨드 전용 STATUS** — /crawler와 분리 운영
@@ -432,3 +432,7 @@
 | 2026-04-21 | **∅ 제외만 보기 필터 추가** — `filterExc` 상태·`FILTER_EXC_KEY` localStorage·`body.filter-exc` CSS 규칙. `toggleFilterExc()`는 추천 필터와 상호 배타 (한쪽 활성 시 다른 쪽 자동 해제). `updateCellCounts()`도 exc 분기 |
 | 2026-04-21 | **🎨 디자이너 PICK 기능 신설** — 재생성 선택과 독립. 모달 팝업에 별도 체크박스(`#modal-pick-chk` · 보라색), 썸네일은 `.is-pick` 보라 테두리로 표시. 전용 탭 `__pick__` 추가(탭→브랜드 2단 그룹화 렌더). localStorage `line_matrix_designer_pick_v1` 저장. 전용 버튼: PICK 백업 JSON · PICK ZIP · PICK 해제. 캡처 시 `.is-pick` 테두리 제거 추가 |
 | 2026-04-21 | **별도 GitHub 레포 분리** (`tacchinimd-dot/imagemap`) — 스크립트·산출물·xlsx를 `C:\Users\AD0903\imagemap\`로 이전, raw 데이터/캐시는 `brand_crawler\`에 잔존. 스크립트 경로 로직에 `SCRIPT_DIR = Path(__file__).parent` 추가 → 입력=brand_crawler, 출력=imagemap 하이브리드. `fit_overrides.xlsx` 이전. `/imagemap` 슬래시 커맨드 + `imagemap_project.md` + `MEMORY.md` 갱신 |
+| 2026-04-21 오후 | **Alo/Lulu 누끼 경로 회귀 수정** — `still_path` 상대경로(`alo_crawler/stills/...`)를 CWD 기준으로 `exists()` 체크하던 코드가 imagemap 폴더 이전 후 전부 False 반환. `abs_p = ROOT / p` 결합 후 `.exists()` 체크로 순서 변경. `_local_to_data_url()`·hires file URL에 전달하는 경로도 절대경로화. 매트릭스 Alo 누끼 0/166 → 155/166, Lulu 0/62 → 58/62 복구 |
+| 2026-04-21 오후 | **누락 stills 8건 추가 추출** — 드레스·롱슬리브 탭 편입 시 누락됐던 Alo 롱슬리브 4 + 드레스 3 + Lulu 롱슬리브 1. `_reextract_alo_handles.py`의 SUB_EN에 `롱슬리브/드레스` 매핑 추가, HANDLES에 7건 등록 → OpenAI gpt-image-1 재생성(3.8분, ~$1). Lulu 1건은 인라인 Python으로 처리(24s). 총 8개 상품 매트릭스에서 모델컷 → 누끼로 전환 |
+| 2026-04-21 오후 | **GitHub Pages 배포** — Pages 활성화 시 404 발생 → `OUT` 경로 `line_matrix.html` → `index.html`로 변경. Pages 정상 접속: https://tacchinimd-dot.github.io/imagemap/ |
+| 2026-04-21 오후 | **필터 UX 개편** — 상단바의 `⭐✨ 추천만 보기` · `∅ 제외만 보기` 버튼 2개 제거. 레전드 3박스(⭐ CORE · ✨ ADAPT · — 제외) 자체를 클릭 가능한 필터로 전환 (data-filter·role=button·tabindex). **독립 다중 선택** — 각 박스 독립 토글 가능, 복수 활성 시 OR 결합. CSS는 `body.has-filter` + `show-{core/adapt/exc}` 조합으로 기본 숨김 후 재노출. 신규 localStorage `line_matrix_filter_modes_v1`(배열) · 구 키 3개 자동 정리 |
