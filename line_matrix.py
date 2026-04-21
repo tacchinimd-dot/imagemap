@@ -2064,14 +2064,6 @@ body {{
     display: inline-block; width: 1px; height: 18px;
     background: var(--line-2); margin: 0 4px;
 }}
-#btn-filter-rec.active {{
-    background: #fef3c7; border-color: #fbbf24; color: #92400e;
-}}
-#btn-filter-rec.active:hover {{ background: #fde68a; }}
-#btn-filter-exc.active {{
-    background: #e5e7eb; border-color: #6b7280; color: #374151;
-}}
-#btn-filter-exc.active:hover {{ background: #d1d5db; }}
 #btn-download-rec {{
     background: #fef3c7; border-color: #fbbf24; color: #92400e;
 }}
@@ -2089,14 +2081,34 @@ body {{
     border-color: #9333ea; color: #9333ea;
 }}
 
-/* 필터 활성화 시: 추천 뱃지 없는 썸네일 숨김 */
-body.filter-rec .thumb[data-match=""] {{ display: none; }}
-/* 필터 활성화 시: 셀에 추천 항목 없으면 count 회색 */
-body.filter-rec .gallery-cell.hidden-all {{ opacity: .35; }}
-/* 제외 필터: 추천 뱃지 있는 썸네일 숨김 */
-body.filter-exc .thumb[data-match="core"],
-body.filter-exc .thumb[data-match="adapt"] {{ display: none; }}
-body.filter-exc .gallery-cell.hidden-all {{ opacity: .35; }}
+/* 독립 다중 필터: 활성 필터 있으면 기본 숨김 후 해당 카테고리만 재노출 (OR 결합) */
+body.has-filter .thumb {{ display: none; }}
+body.show-core .thumb[data-match="core"],
+body.show-adapt .thumb[data-match="adapt"],
+body.show-exc .thumb[data-match=""] {{ display: block; }}
+body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
+
+/* 레전드 박스 클릭 인터랙션 */
+.legend-item {{
+    cursor: pointer;
+    transition: transform .15s, background .15s, box-shadow .15s;
+    outline: none;
+}}
+.legend-item:hover {{ transform: translateY(-1px); background: var(--bg-2); }}
+.legend-item:focus-visible {{ box-shadow: 0 0 0 2px var(--ink); }}
+.legend-item[data-filter="core"].active {{
+    background: #fef3c7; box-shadow: 0 0 0 2px #fbbf24;
+}}
+.legend-item[data-filter="adapt"].active {{
+    background: #f3e8ff; box-shadow: 0 0 0 2px #c084fc;
+}}
+.legend-item[data-filter="exc"].active {{
+    background: #e5e7eb; box-shadow: 0 0 0 2px #6b7280;
+}}
+.legend-hint {{
+    font-size: 11px; font-weight: 500; color: var(--ink-3);
+    letter-spacing: 0;
+}}
 
 /* ── SELECTED TAB PANEL ─────────────── */
 .tab-btn-selected {{
@@ -2206,8 +2218,6 @@ body.filter-exc .gallery-cell.hidden-all {{ opacity: .35; }}
   <div class="topbar">
     <div class="topbar-brand"><span class="logo-dot"></span>F&amp;F · Brand Matrix</div>
     <div class="topbar-actions">
-      <button id="btn-filter-rec" title="⭐ 직접 부합 + ✨ 타키니화 가능 항목만 표시">⭐✨ 추천만 보기</button>
-      <button id="btn-filter-exc" title="추천(⭐/✨) 없는 제외 항목만 표시">∅ 제외만 보기</button>
       <button id="btn-download-rec" title="⭐✨ 추천 항목 전체 이미지 ZIP (브라우저 · 일부 썸네일 폴백)">⭐✨ 추천 ZIP</button>
       <button id="btn-backup-hires" class="hires" title="⭐✨ 추천 백업 JSON 저장 후 download_hires.py로 원본 고화질 다운로드">🔥 고화질용 백업</button>
       <span class="sel-divider"></span>
@@ -2253,23 +2263,23 @@ body.filter-exc .gallery-cell.hidden-all {{ opacity: .35; }}
     </div>
 
     <div class="legend">
-      <div class="legend-title">SERGIO TACCHINI 이미지 재생성 후보 — 마크 가이드</div>
+      <div class="legend-title">SERGIO TACCHINI 이미지 재생성 후보 — 마크 가이드 <span class="legend-hint">· 박스 클릭으로 토글 · 복수 선택 가능</span></div>
       <div class="legend-items">
-        <div class="legend-item">
+        <div class="legend-item" data-filter="core" role="button" tabindex="0" title="⭐ 직접 부합 토글 (복수 선택 가능)">
           <span class="badge badge-core" style="position:static">⭐</span>
           <div class="legend-text">
             <strong>ST 직접 부합 ({core_count}건)</strong>
             <span>현 시그니쳐 계보(플레잉폴로·플라잉스커트·쿠쉬라이트·에센셜쇼츠)에 바로 얹을 수 있는 아이템</span>
           </div>
         </div>
-        <div class="legend-item">
+        <div class="legend-item" data-filter="adapt" role="button" tabindex="0" title="✨ 타키니화 가능 토글 (복수 선택 가능)">
           <span class="badge badge-adapt" style="position:static">✨</span>
           <div class="legend-text">
             <strong>타키니화 가능 ({adapt_count}건)</strong>
             <span>럭셔리 4사의 재킷·플리츠 스커트 또는 Skims의 Body-Lined 쇼츠·스커트 — 실루엣 참조 후 소재·디테일은 ST 기준으로 전환</span>
           </div>
         </div>
-        <div class="legend-item legend-item-mute">
+        <div class="legend-item legend-item-mute" data-filter="exc" role="button" tabindex="0" title="제외 토글 (복수 선택 가능)">
           <span class="badge-placeholder">—</span>
           <div class="legend-text">
             <strong>제외 ({total - core_count - adapt_count}건)</strong>
@@ -2836,53 +2846,56 @@ function downloadHiresBackup() {{
     showToast('백업 완료 ' + arr.length + '건 — 터미널에서: python download_hires.py hires_backup_' + ts + '.json');
 }}
 
-// ── ⭐✨ 추천 / ∅ 제외 필터 (상호 배타) ──
-const FILTER_KEY = 'line_matrix_filter_rec_v1';
-const FILTER_EXC_KEY = 'line_matrix_filter_exc_v1';
-let filterRec = localStorage.getItem(FILTER_KEY) === '1';
-let filterExc = localStorage.getItem(FILTER_EXC_KEY) === '1';
-// 혹시 저장된 상태가 둘 다 켜져있으면 rec 우선
-if (filterRec && filterExc) {{ filterExc = false; localStorage.setItem(FILTER_EXC_KEY, '0'); }}
+// ── 독립 다중 필터: 레전드 3박스 (core · adapt · exc) 각각 토글 — 복수 활성 가능 ──
+const FILTER_MODES_KEY = 'line_matrix_filter_modes_v1';
+let filterModes = new Set();
+try {{
+    const raw = localStorage.getItem(FILTER_MODES_KEY);
+    if (raw) filterModes = new Set(JSON.parse(raw).filter(m => ['core','adapt','exc'].includes(m)));
+}} catch (e) {{ console.warn('filter modes read failed:', e); }}
+// 구버전 localStorage 키 정리
+['line_matrix_filter_rec_v1','line_matrix_filter_exc_v1','line_matrix_filter_mode_v1']
+    .forEach(k => localStorage.removeItem(k));
+
+function persistFilterModes() {{
+    if (filterModes.size) localStorage.setItem(FILTER_MODES_KEY, JSON.stringify([...filterModes]));
+    else localStorage.removeItem(FILTER_MODES_KEY);
+}}
 
 function applyFilterState() {{
-    document.body.classList.toggle('filter-rec', filterRec);
-    document.body.classList.toggle('filter-exc', filterExc);
-    const btnR = document.getElementById('btn-filter-rec');
-    btnR.classList.toggle('active', filterRec);
-    btnR.textContent = filterRec ? '✓ 추천만 보기 (해제)' : '⭐✨ 추천만 보기';
-    const btnE = document.getElementById('btn-filter-exc');
-    btnE.classList.toggle('active', filterExc);
-    btnE.textContent = filterExc ? '✓ 제외만 보기 (해제)' : '∅ 제외만 보기';
+    document.body.classList.toggle('has-filter', filterModes.size > 0);
+    ['core','adapt','exc'].forEach(m => {{
+        document.body.classList.toggle('show-' + m, filterModes.has(m));
+    }});
+    document.querySelectorAll('.legend-item').forEach(el => {{
+        el.classList.toggle('active', filterModes.has(el.dataset.filter));
+    }});
     updateCellCounts();
 }}
 
-function toggleFilterRec() {{
-    filterRec = !filterRec;
-    if (filterRec) {{ filterExc = false; localStorage.setItem(FILTER_EXC_KEY, '0'); }}
-    localStorage.setItem(FILTER_KEY, filterRec ? '1' : '0');
-    applyFilterState();
-}}
-
-function toggleFilterExc() {{
-    filterExc = !filterExc;
-    if (filterExc) {{ filterRec = false; localStorage.setItem(FILTER_KEY, '0'); }}
-    localStorage.setItem(FILTER_EXC_KEY, filterExc ? '1' : '0');
+function toggleFilterMode(mode) {{
+    if (filterModes.has(mode)) filterModes.delete(mode);
+    else filterModes.add(mode);
+    persistFilterModes();
     applyFilterState();
 }}
 
 // 필터 상태에 따라 각 cell의 count pill 업데이트
 function updateCellCounts() {{
+    const anyFilter = filterModes.size > 0;
     document.querySelectorAll('.gallery-cell').forEach(cell => {{
         const thumbs = cell.querySelectorAll('.thumb');
         const total = thumbs.length;
         let visible = total;
-        if (filterRec) {{
-            visible = Array.from(thumbs).filter(t =>
-                t.dataset.match === 'core' || t.dataset.match === 'adapt').length;
-        }} else if (filterExc) {{
-            visible = Array.from(thumbs).filter(t => t.dataset.match === '').length;
+        if (anyFilter) {{
+            visible = Array.from(thumbs).filter(t => {{
+                const m = t.dataset.match;
+                if (filterModes.has('core')  && m === 'core')  return true;
+                if (filterModes.has('adapt') && m === 'adapt') return true;
+                if (filterModes.has('exc')   && m === '')      return true;
+                return false;
+            }}).length;
         }}
-        const anyFilter = filterRec || filterExc;
         const pill = cell.querySelector('.count-pill');
         if (pill) {{
             pill.textContent = anyFilter && total > 0 ? (visible + '/' + total) : total;
@@ -2890,6 +2903,17 @@ function updateCellCounts() {{
         cell.classList.toggle('hidden-all', anyFilter && visible === 0 && total > 0);
     }});
 }}
+
+// 레전드 박스 클릭/키보드 핸들러
+document.querySelectorAll('.legend-item').forEach(el => {{
+    el.addEventListener('click', () => toggleFilterMode(el.dataset.filter));
+    el.addEventListener('keydown', (e) => {{
+        if (e.key === 'Enter' || e.key === ' ') {{
+            e.preventDefault();
+            toggleFilterMode(el.dataset.filter);
+        }}
+    }});
+}});
 
 // ── 전체 해제 ──
 function clearAllSelections() {{
@@ -2911,8 +2935,6 @@ function clearAllSelections() {{
 document.getElementById('btn-backup').addEventListener('click', downloadBackup);
 document.getElementById('btn-export-xlsx').addEventListener('click', downloadImagesZip);
 document.getElementById('btn-clear-all').addEventListener('click', clearAllSelections);
-document.getElementById('btn-filter-rec').addEventListener('click', toggleFilterRec);
-document.getElementById('btn-filter-exc').addEventListener('click', toggleFilterExc);
 document.getElementById('btn-download-rec').addEventListener('click', downloadRecommendedZip);
 document.getElementById('btn-backup-hires').addEventListener('click', downloadHiresBackup);
 document.getElementById('btn-backup-pick').addEventListener('click', downloadPickBackup);
