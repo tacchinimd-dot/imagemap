@@ -27,8 +27,9 @@ from line_matrix import (
     load_skims, load_miumiu, load_prada, load_sportyandrich,
 )
 
-ROOT = Path(r"C:\Users\AD0903\brand_crawler")
-OUT = ROOT / "fit_overrides.xlsx"
+ROOT = Path(r"C:\Users\AD0903\brand_crawler")       # 입력(raw 데이터) 위치
+SCRIPT_DIR = Path(__file__).resolve().parent        # 출력(xlsx) 위치
+OUT = SCRIPT_DIR / "fit_overrides.xlsx"
 
 TAB_LABEL = {k: lbl for k, lbl, _ in TABS}
 LINE_LABEL = {k: lbl for k, lbl, _, _ in LINES}

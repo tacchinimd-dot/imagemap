@@ -1,7 +1,8 @@
 # 라인 × 핏 매트릭스 (Image Map) — 작업 현황
 
 > **마지막 업데이트:** 2026-04-21 (제외만 보기 필터 · 디자이너 PICK 탭/체크박스 추가 · Lacoste 원본 해상도 재다운로드 스크립트)
-> **위치:** `C:\Users\AD0903\brand_crawler\`
+> **위치:** `C:\Users\AD0903\imagemap\` (스크립트·산출물·xlsx) / `C:\Users\AD0903\brand_crawler\` (raw 데이터·캐시·스틸컷)
+> **Git 레포:** [tacchinimd-dot/imagemap](https://github.com/tacchinimd-dot/imagemap) (2026-04-21 분리)
 > **/imagemap 커맨드 전용 STATUS** — /crawler와 분리 운영
 > **Claude Code가 이 파일을 읽으면:** 아래 내용을 기반으로 작업을 이어서 진행하세요.
 
@@ -139,30 +140,40 @@
 
 ## 파일 구성
 
+**1. `C:\Users\AD0903\imagemap\` — git 레포 (tacchinimd-dot/imagemap, 스크립트·산출물)**
+
 ```
-C:\Users\AD0903\brand_crawler\
 ├── IMAGEMAP_STATUS.md                        ← 이 파일
-├── line_matrix.py                            ✅ 매트릭스 HTML 생성기 (8브랜드·탭별 핏·이름 교정·dedup·data URL 임베드)
-├── line_matrix.html                          ✅ 최신 — 모던 대시보드 UI (~4.5MB, 모든 이미지 data URL 임베드)
+├── line_matrix.py                            ✅ 매트릭스 HTML 생성기 (12브랜드·탭별 핏·리뷰 모드)
+├── line_matrix.html                          ✅ 최신 산출물 (~17~20MB, 이미지 data URL + ITEMS JSON)
 ├── make_fit_overrides.py                     ✅ 수기 핏 입력 엑셀 생성기 (탭별 드롭다운)
-├── fit_overrides.xlsx                        ✅ 762건, 핏값없음 5건
-├── make_classification_export.py             ✅ 분류 결과 엑셀 출력 스크립트
-├── classification_export.xlsx                ✅ 1021건, 라인 색상·자동 필터·헤더 고정
-├── _sample_new_brands.py / .html             — Descente 상품컷 샘플 페이지
-├── _verify_alo_bottoms.py / .html            — Alo 하의 누끼 검증 (체크박스 선택 페이지)
-├── _extract_alo_stills_full.py               ✅ Alo AI 누끼 배치 (완료)
-├── _extract_lululemon_stills_full.py         ✅ Lululemon AI 누끼 배치 (완료)
-├── _reextract_alo_handles.py                 ✅ 특정 handle 재추출
-├── _fetch_lacoste_via_browser.py             ✅ Lacoste Akamai 우회 다운로드 (visible Chromium)
-│
-├── .image_cache/                             ✅ 원격 이미지 JPEG 캐시 (766개, ~20MB)
+├── fit_overrides.xlsx                        ✅ 762건, 핏값없음 5건 (brand_crawler에서 이전)
+├── download_hires.py                         ✅ 백업 JSON → 원본 해상도 ZIP 다운로더
+├── _rescue_lacoste_hires.py                  ✅ Lacoste Akamai 우회 원본 재다운로드 (visible Chromium + imwidth 제거)
+├── _fetch_lacoste_via_browser.py             ✅ Lacoste 기존 축소본 캐시 rescue
+├── .image_cache_hires/                       (로컬 전용 · .gitignore · Lacoste 원본 재캐시)
+└── .gitignore                                ✅ 캐시/xlsx/백업 JSON 차단
+```
+
+**2. `C:\Users\AD0903\brand_crawler\` — raw 데이터·캐시·스틸컷 (공유)**
+
+```
+├── .image_cache/                             ✅ 원격 이미지 JPEG 캐시 (~770개, ~20MB)
 │   └── failed_urls.log                       — 다운로드 실패 URL 기록
+├── fabric_overrides.xlsx                     ✅ 사용자 소분류 오버라이드
+├── classification_export.xlsx                ✅ 분류 결과 전체 export (1021건)
 ├── alo_crawler/alo_still_images.json         ✅ 193건 Alo 누끼 캐시
 ├── alo_crawler/stills/*.png                  ✅ 193장 Alo 누끼 이미지
 ├── wilson_crawler/wilson_still_images.json   ✅ 66건 Wilson 상품컷 인덱스
 ├── lululemon_crawler/lululemon_still_images.json  ✅ 63건 Lululemon 누끼 캐시
-└── lululemon_crawler/stills/*.png            ✅ 63장 Lululemon 누끼 이미지
+├── lululemon_crawler/stills/*.png            ✅ 63장 Lululemon 누끼 이미지
+├── _classify_wilson_stills.py                — (brand_crawler에 잔존) Wilson Vision 판별
+├── _extract_alo_stills_full.py               — (brand_crawler에 잔존) Alo AI 누끼 배치
+├── _extract_lululemon_stills_full.py         — (brand_crawler에 잔존) Lululemon AI 누끼 배치
+└── _reextract_alo_handles.py                 — (brand_crawler에 잔존) Alo 특정 handle 재추출
 ```
+
+**스크립트 경로 로직**: `line_matrix.py`·`make_fit_overrides.py` 는 `ROOT=brand_crawler`(데이터 입력)와 `SCRIPT_DIR=imagemap`(출력)을 분리. `_IMAGE_CACHE_DIR`·`fabric_overrides.xlsx`·raw 크롤 데이터는 brand_crawler에서 읽고, `line_matrix.html`·`fit_overrides.xlsx`는 imagemap에 씀.
 
 ---
 
@@ -420,3 +431,4 @@ C:\Users\AD0903\brand_crawler\
 | 2026-04-21 | **Lacoste 원본 해상도 재다운로드 스크립트** (`_rescue_lacoste_hires.py`) 신규. `hires_backup_*.json` 내 Lacoste 실패분을 visible Chromium으로 Akamai 우회 → `imwidth` 제거로 원본(대부분 1340×1340, 일부 2000×2000) 수신 → 기존 ZIP 교체. `.image_cache_hires/` 별도 캐시 |
 | 2026-04-21 | **∅ 제외만 보기 필터 추가** — `filterExc` 상태·`FILTER_EXC_KEY` localStorage·`body.filter-exc` CSS 규칙. `toggleFilterExc()`는 추천 필터와 상호 배타 (한쪽 활성 시 다른 쪽 자동 해제). `updateCellCounts()`도 exc 분기 |
 | 2026-04-21 | **🎨 디자이너 PICK 기능 신설** — 재생성 선택과 독립. 모달 팝업에 별도 체크박스(`#modal-pick-chk` · 보라색), 썸네일은 `.is-pick` 보라 테두리로 표시. 전용 탭 `__pick__` 추가(탭→브랜드 2단 그룹화 렌더). localStorage `line_matrix_designer_pick_v1` 저장. 전용 버튼: PICK 백업 JSON · PICK ZIP · PICK 해제. 캡처 시 `.is-pick` 테두리 제거 추가 |
+| 2026-04-21 | **별도 GitHub 레포 분리** (`tacchinimd-dot/imagemap`) — 스크립트·산출물·xlsx를 `C:\Users\AD0903\imagemap\`로 이전, raw 데이터/캐시는 `brand_crawler\`에 잔존. 스크립트 경로 로직에 `SCRIPT_DIR = Path(__file__).parent` 추가 → 입력=brand_crawler, 출력=imagemap 하이브리드. `fit_overrides.xlsx` 이전. `/imagemap` 슬래시 커맨드 + `imagemap_project.md` + `MEMORY.md` 갱신 |
