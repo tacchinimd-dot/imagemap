@@ -211,7 +211,7 @@ def cache_all_images_to_data_url(items: list, max_workers: int = 20) -> None:
 
 ROOT = Path(r"C:\Users\AD0903\brand_crawler")       # 입력(raw 데이터·캐시) 위치
 SCRIPT_DIR = Path(__file__).resolve().parent        # 출력(HTML·xlsx) 위치
-OUT = SCRIPT_DIR / "line_matrix.html"
+OUT = SCRIPT_DIR / "index.html"                     # GitHub Pages 루트 진입용
 FIT_OVERRIDES_XLSX = SCRIPT_DIR / "fit_overrides.xlsx"  # 사용자 수기 입력 반영 (있으면 적용)
 
 # ── 브랜드 ↔ 라인 매핑 ──────────────────────────────────────────────────────────
