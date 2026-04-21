@@ -379,15 +379,16 @@ def load_alo() -> list[dict]:
             m = re.search(r"/products/([^/?#]+)", it["product_url"])
             if m and m.group(1) in still:
                 p = still[m.group(1)].get("still_path")
-                if p and Path(p).exists():
+                if p:
                     abs_p = Path(p) if Path(p).is_absolute() else (ROOT / p)
-                    data_url = _local_to_data_url(p.replace("\\", "/"))
-                    if data_url:
-                        it["image_url"] = data_url
-                    else:
-                        it["image_url"] = p.replace("\\", "/")
-                    # 모달용 원본 경로 — file:// URL
-                    it["image_url_hires"] = "file:///" + str(abs_p).replace("\\", "/")
+                    if abs_p.exists():
+                        data_url = _local_to_data_url(str(abs_p).replace("\\", "/"))
+                        if data_url:
+                            it["image_url"] = data_url
+                        else:
+                            it["image_url"] = str(abs_p).replace("\\", "/")
+                        # 모달용 원본 경로 — file:// URL
+                        it["image_url_hires"] = "file:///" + str(abs_p).replace("\\", "/")
     return items
 
 
@@ -546,14 +547,15 @@ def load_lululemon() -> list[dict]:
             m = _re.search(r"/([^/]+)\.html", it["product_url"])
             if m and m.group(1) in still:
                 p = still[m.group(1)].get("still_path")
-                if p and Path(p).exists():
+                if p:
                     abs_p = Path(p) if Path(p).is_absolute() else (ROOT / p)
-                    data_url = _local_to_data_url(p.replace("\\", "/"))
-                    if data_url:
-                        it["image_url"] = data_url
-                    else:
-                        it["image_url"] = p.replace("\\", "/")
-                    it["image_url_hires"] = "file:///" + str(abs_p).replace("\\", "/")
+                    if abs_p.exists():
+                        data_url = _local_to_data_url(str(abs_p).replace("\\", "/"))
+                        if data_url:
+                            it["image_url"] = data_url
+                        else:
+                            it["image_url"] = str(abs_p).replace("\\", "/")
+                        it["image_url_hires"] = "file:///" + str(abs_p).replace("\\", "/")
     return items
 
 
