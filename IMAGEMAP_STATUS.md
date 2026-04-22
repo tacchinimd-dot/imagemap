@@ -1,6 +1,6 @@
 # 라인 × 핏 매트릭스 (Image Map) — 작업 현황
 
-> **마지막 업데이트:** 2026-04-21 오후 (GitHub Pages 배포 · 필터 UX 레전드 박스 독립 다중 토글로 개편 · Alo/Lulu 누끼 경로 회귀 수정 + 누락분 8건 추가 추출)
+> **마지막 업데이트:** 2026-04-22 (Supabase 실시간 협업 연동 완료 · "재생성 선택" → "📌 MD PICK" 네이밍 + 파란색 테마)
 > **위치:** `C:\Users\AD0903\imagemap\` (스크립트·산출물·xlsx) / `C:\Users\AD0903\brand_crawler\` (raw 데이터·캐시·스틸컷)
 > **Git 레포:** [tacchinimd-dot/imagemap](https://github.com/tacchinimd-dot/imagemap) (2026-04-21 분리)
 > **/imagemap 커맨드 전용 STATUS** — /crawler와 분리 운영
@@ -144,8 +144,9 @@
 
 ```
 ├── IMAGEMAP_STATUS.md                        ← 이 파일
-├── line_matrix.py                            ✅ 매트릭스 HTML 생성기 (12브랜드·탭별 핏·리뷰 모드)
-├── line_matrix.html                          ✅ 최신 산출물 (~17~20MB, 이미지 data URL + ITEMS JSON)
+├── line_matrix.py                            ✅ 매트릭스 HTML 생성기 (12브랜드·탭별 핏·리뷰 모드·Supabase 연동)
+├── index.html                                ✅ 최신 산출물 (~17MB, GitHub Pages 루트)
+├── supabase_schema.sql                       ✅ Supabase 테이블·Realtime·RLS 정책 정의 (사용자 SQL Editor 실행용)
 ├── make_fit_overrides.py                     ✅ 수기 핏 입력 엑셀 생성기 (탭별 드롭다운)
 ├── fit_overrides.xlsx                        ✅ 762건, 핏값없음 5건 (brand_crawler에서 이전)
 ├── download_hires.py                         ✅ 백업 JSON → 원본 해상도 ZIP 다운로더
@@ -260,7 +261,7 @@
 1. **이미지 모달 팝업** — 썸네일 클릭 시 원본 고해상 이미지 + 메타데이터 + 상세페이지 링크
    - Alo/Lululemon: `file:///...stills/*.png` 원본 1024×1536
    - 원격 CDN: 원본 URL 직접 로드 (CORS 차단 시 썸네일 폴백)
-2. **체크박스 영속성** — localStorage(`line_matrix_selected_v1`) 저장. 탭 전환·모달·새로고침에도 유지. 명시적 해제 전까지 보존
+2. **체크박스 영속성** — Supabase 활성 시 `md_picks` / `designer_picks` 테이블에 이메일 단위 저장(기기·브라우저 독립) · 비활성 시 localStorage(`line_matrix_selected_v1`) 폴백. 어느 쪽이든 명시적 해제 전까지 보존
 3. **ST 추천 이원화 (⭐/✨)** — `classify_st_match()` — "core"/"adapt"/None 3값 반환
 4. **선택된 항목 전용 탭** — 우측 끝 (✓ 아이콘 + 카운트). 탭·브랜드별 그룹화
 5. **⭐✨ 추천만 보기 필터** — 추천 없는 썸네일 숨김 (localStorage 영속, 셀 카운트는 `보이는/전체`로 표시)
@@ -330,6 +331,65 @@
 - `_sample_skims_flt.py` (신규) — Skims `-FLT` 패턴 확인용 샘플 갤러리
 - HTML 크기 4.5MB → **17.5MB** (ITEMS JSON + 드레스 + 롱슬리브 포함)
 
+### ✅ Step 11 — Supabase 실시간 협업 연동 + MD PICK 네이밍 (완료, 2026-04-22)
+
+#### 변경 요점
+- **네이밍:** "재생성 선택" → **"📌 MD PICK"** (상단바·탭·패널·백업·ZIP·해제 버튼·모달 라벨·빈 상태 메시지) · **색상 파랑 `#2563eb`** · `.is-selected` 테두리·모달 체크박스 행·탭 버튼 모두 파란 테마로 전환
+- **🎨 디자이너 PICK** 은 기존 보라색(#9333ea) 유지 → 두 체계 시각적 대비 강화
+- **Supabase 연동:** 개인별 `md_picks` / `designer_picks` 테이블, `@fnfcorp.com` 도메인 화이트리스트, Magic Link 로그인
+- **Realtime 구독:** `postgres_changes` 이벤트로 팀원 PICK 실시간 반영
+- **Attribution 배지:** 썸네일 좌하단 `👤N` + 툴팁(`이름(MD)` `이름(PICK)` `이름(MD+PICK)`) · 본인 포함 시 녹색 점
+- **폴백 모드:** `SUPABASE_URL`/`SUPABASE_ANON_KEY` 빈 값이면 기존 localStorage 전용 모드로 자동 전환
+
+#### 데이터 모델 (Supabase)
+
+| 테이블 | PK | 용도 |
+|---|---|---|
+| `md_picks` | `(user_email, item_id)` | 이미지 재생성 후보 (MD 선정) |
+| `designer_picks` | `(user_email, item_id)` | 디자이너 시안 pick (독립) |
+
+- 인덱스: `item_id` (attribution 역조회)
+- Realtime publication 등록 완료 (`supabase_realtime`)
+- RLS 정책 6종: 팀 읽기(도메인), 본인 insert/delete (자기 row만)
+- 뷰: `v_md_picks_summary`, `v_designer_picks_summary` (item_id 별 picker 집계)
+
+#### 인프라
+
+| 항목 | 값 |
+|---|---|
+| Supabase Project | `mtbaumxadatsqmilhuus` |
+| Project URL | `https://mtbaumxadatsqmilhuus.supabase.co` |
+| Auth Provider | Email (Magic Link) |
+| Site URL | `https://tacchinimd-dot.github.io/imagemap/` |
+| Redirect URLs | `https://tacchinimd-dot.github.io/imagemap/**` |
+| 환경변수 | `SUPABASE_URL`, `SUPABASE_ANON_KEY` (setx 영구 저장) |
+
+#### 파일·코드 변경
+
+- `line_matrix.py`
+  - 상단 상수: `SUPABASE_URL` / `SUPABASE_ANON_KEY` (env 읽기) / `ALLOWED_EMAIL_DOMAIN`
+  - HTML head: `@supabase/supabase-js@2` CDN 스크립트 주입
+  - CSS: `.auth-modal-inner`, `.user-pill`, `.attr-badge`, MD PICK 파란 테마 전환
+  - HTML: Auth 모달(이메일 입력 + 읽기 전용 스킵), 상단 user pill (로그아웃 포함)
+  - JS: `initSupabase()` / `onLogin()` / `onLogout()` / `loadRemoteAll()` / `subscribeRealtime()` / `handleMdPickChange()` / `handleDesignerPickChange()` / `syncThumbSelected()` / `syncThumbPick()` / `renderAttributionBadgesFor()` / `sendMagicLink()` / `doLogout()`
+  - `applySelected()` / `applyPick()` / `clearAllSelections()` / `clearAllPicks()` → Supabase upsert/delete 동기화 + 낙관적 로컬 업데이트
+  - `persist()` / `persistPicks()` → Supabase 활성 시 localStorage 쓰기 스킵
+- `supabase_schema.sql` (신규) — 테이블·인덱스·Realtime·RLS 정책·검증용 뷰 포함. Supabase SQL Editor에서 전체 실행
+
+#### 사용자 플로우
+
+1. Pages 접속 시 세션 없으면 Auth 모달 자동 노출
+2. 이메일 입력 → Magic Link 전송 → 메일 링크 클릭 → 자동 로그인
+3. 클라이언트·RLS 이중 도메인 화이트리스트 (`@fnfcorp.com` 외 전부 거절)
+4. 로그인 후 `loadRemoteAll()` 로 본인 PICK 복원 + 팀 전체 attribution 로드
+5. 체크 시 낙관적 UI 업데이트 → 비동기 DB sync → Realtime broadcast → 타 팀원 화면 즉시 반영
+6. 로그아웃 시 로컬 상태 비우고 모달 재표시 (타 세션 미영향)
+
+#### 배포 커밋
+
+- `3e4bf23` feat: Supabase 실시간 협업 연동 + MD PICK 네이밍
+- `ad3e07e` style: MD PICK 파란색 테마 + 📌 아이콘 적용
+
 ### ⏳ Step 10 — 세밀 조정 (사용자 리뷰 기반)
 - 스커트 탭 직접 검토 → 피티드/플레어 오분류 피드백 시 규칙 보정 또는 fit_overrides.xlsx G열 수기 입력
 - 드레스 탭 직접 검토 → ⭐ 201건 / ✨ 75건이 과도하면 RL 드레스 제외 또는 맥시 전체 배제 등 조정
@@ -367,6 +427,7 @@
 | 다운로드 실패 시 검정 박스 표시 | placeholder로 쓴 1×1 PNG가 실제로 black pixel (color type 2 RGB) | color type 6 alpha 있는 **진짜 투명 PNG**로 교체 |
 | Lacoste `imageapac1.lacoste.com` 191건 모두 403 | Akamai bot detection (TLS fingerprint·headless 감지) | **visible Chromium + `page.goto()`** 우회. `ctx.request.get`은 여전히 차단 |
 | Lacoste 이미지 AVIF 포맷 반환 → Pillow 디코딩 실패 | `impolicy=pctp` 파라미터가 AVIF 트리거 | URL에서 `impolicy=pctp` 제거 → JPEG 응답 |
+| Supabase Project URL 혼동 (`/rest/v1/` 포함된 값 복사) | Dashboard에 노출되는 REST 엔드포인트 경로와 SDK가 기대하는 Project URL 혼동 | SDK는 베이스 URL만 사용 (`https://<ref>.supabase.co`) · 끝 슬래시·경로 제거 필수 |
 
 ---
 
@@ -436,3 +497,5 @@
 | 2026-04-21 오후 | **누락 stills 8건 추가 추출** — 드레스·롱슬리브 탭 편입 시 누락됐던 Alo 롱슬리브 4 + 드레스 3 + Lulu 롱슬리브 1. `_reextract_alo_handles.py`의 SUB_EN에 `롱슬리브/드레스` 매핑 추가, HANDLES에 7건 등록 → OpenAI gpt-image-1 재생성(3.8분, ~$1). Lulu 1건은 인라인 Python으로 처리(24s). 총 8개 상품 매트릭스에서 모델컷 → 누끼로 전환 |
 | 2026-04-21 오후 | **GitHub Pages 배포** — Pages 활성화 시 404 발생 → `OUT` 경로 `line_matrix.html` → `index.html`로 변경. Pages 정상 접속: https://tacchinimd-dot.github.io/imagemap/ |
 | 2026-04-21 오후 | **필터 UX 개편** — 상단바의 `⭐✨ 추천만 보기` · `∅ 제외만 보기` 버튼 2개 제거. 레전드 3박스(⭐ CORE · ✨ ADAPT · — 제외) 자체를 클릭 가능한 필터로 전환 (data-filter·role=button·tabindex). **독립 다중 선택** — 각 박스 독립 토글 가능, 복수 활성 시 OR 결합. CSS는 `body.has-filter` + `show-{core/adapt/exc}` 조합으로 기본 숨김 후 재노출. 신규 localStorage `line_matrix_filter_modes_v1`(배열) · 구 키 3개 자동 정리 |
+| 2026-04-22 | **Supabase 실시간 협업 연동 · 1차 구현** — `md_picks` / `designer_picks` 개인별 테이블, `@fnfcorp.com` 도메인 화이트리스트(클라이언트 + RLS 이중 차단), Magic Link Auth, `postgres_changes` Realtime 구독, 썸네일 `👤N` attribution 배지. `line_matrix.py`에 Supabase 설정 상수·CDN SDK·Auth 모달·user pill·`initSupabase/onLogin/onLogout/loadRemoteAll/subscribeRealtime/handle*Change` JS 추가. `applySelected/applyPick/clearAll*` 낙관적 업데이트 + 비동기 DB sync. `supabase_schema.sql` 신규 (테이블·인덱스·Realtime·RLS 6정책·집계 뷰 2개). 빈 env 시 localStorage 폴백 유지. 환경변수 setx 영구 저장. 커밋 `3e4bf23` |
+| 2026-04-22 | **"재생성 선택" → "📌 MD PICK" 네이밍 + 파란색 테마** — 상단바·탭·패널·백업/ZIP/해제 버튼·모달 라벨·빈 상태 메시지·파일명 접두사(`selected_*` → `md_pick_*`) 전면 교체. `.thumb.is-selected` 테두리 `#0a0a0b` → `#2563eb`, 모달 체크박스 행 `#dbeafe`+`#93c5fd` 보더, 탭 버튼 비활성 `#dbeafe`/활성 `#2563eb`, 아이콘 📌 추가. 디자이너 PICK 보라색(#9333ea + 🎨) 유지로 두 체계 시각적 대비. 커밋 `ad3e07e` |
