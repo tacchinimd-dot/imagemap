@@ -1221,7 +1221,7 @@ def render_html(matrix: dict) -> str:
     # 선택된 항목 탭 추가 (오른쪽)
     tabs_nav += (
         '\n<button class="tab-btn tab-btn-selected" data-tab="__selected__">'
-        '<span class="tab-lbl">✓ MD PICK <span class="tab-count" id="tab-count-selected">0</span></span>'
+        '<span class="tab-lbl">📌 MD PICK <span class="tab-count" id="tab-count-selected">0</span></span>'
         '</button>'
     )
     # 디자이너 PICK 탭 추가 (맨 오른쪽)
@@ -1881,16 +1881,16 @@ body {{
     border-color: var(--ink-4);
 }}
 .thumb.is-selected {{
-    border-color: #0a0a0b;
-    box-shadow: 0 0 0 2px #0a0a0b;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px #2563eb;
 }}
 .thumb.is-pick {{
     border-color: #9333ea;
     box-shadow: 0 0 0 2px #9333ea;
 }}
 .thumb.is-pick.is-selected {{
-    border-color: #0a0a0b;
-    box-shadow: 0 0 0 2px #0a0a0b, 0 0 0 5px #c084fc;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px #2563eb, 0 0 0 5px #c084fc;
 }}
 .thumb img {{
     width: 100%; height: 100%;
@@ -1925,7 +1925,7 @@ body {{
 .thumb .chk input {{
     width: 14px; height: 14px;
     margin: 0; cursor: pointer;
-    accent-color: #0a0a0b;
+    accent-color: #2563eb;
 }}
 
 /* ── MODAL ─────────────────────────────── */
@@ -2008,13 +2008,14 @@ body {{
 .modal-chk-row {{
     display: flex; align-items: center; gap: 10px;
     padding: 12px 14px;
-    background: var(--bg-2);
+    background: #dbeafe;
+    border: 1px solid #93c5fd;
     border-radius: var(--radius-sm);
     cursor: pointer; user-select: none;
 }}
-.modal-chk-row:hover {{ background: #e5e7ec; }}
-.modal-chk-row input {{ width: 18px; height: 18px; accent-color: #0a0a0b; }}
-.modal-chk-row .lbl {{ font-size: 13px; font-weight: 600; color: var(--ink); }}
+.modal-chk-row:hover {{ background: #bfdbfe; }}
+.modal-chk-row input {{ width: 18px; height: 18px; accent-color: #2563eb; }}
+.modal-chk-row .lbl {{ font-size: 13px; font-weight: 600; color: #1e40af; }}
 .modal-chk-row.pick {{
     background: #f3e8ff;
     border: 1px solid #c084fc;
@@ -2128,12 +2129,12 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
 /* ── SELECTED TAB PANEL ─────────────── */
 .tab-btn-selected {{
     margin-left: auto;
-    background: #fef3c7 !important;
-    color: #92400e !important;
+    background: #dbeafe !important;
+    color: #1e40af !important;
 }}
 .tab-btn-selected.active {{
-    background: #0a0a0b !important;
-    color: #fef3c7 !important;
+    background: #2563eb !important;
+    color: #fff !important;
 }}
 .tab-count {{
     display: inline-block;
@@ -2293,7 +2294,7 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
       <button id="btn-download-rec" title="⭐✨ 추천 항목 전체 이미지 ZIP (브라우저 · 일부 썸네일 폴백)">⭐✨ 추천 ZIP</button>
       <button id="btn-backup-hires" class="hires" title="⭐✨ 추천 백업 JSON 저장 후 download_hires.py로 원본 고화질 다운로드">🔥 고화질용 백업</button>
       <span class="sel-divider"></span>
-      <span class="sel-count">MD PICK <strong id="sel-count">0</strong> / {total}</span>
+      <span class="sel-count">📌 MD PICK <strong id="sel-count">0</strong> / {total}</span>
       <button id="btn-backup" title="MD PICK 백업 JSON 다운로드">MD 백업</button>
       <button id="btn-export-xlsx" class="primary" title="MD PICK 이미지 ZIP (브라우저)">MD ZIP</button>
       <button id="btn-clear-all" class="danger" title="MD PICK 전체 해제">MD 해제</button>
@@ -2441,7 +2442,7 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
       <div class="modal-actions">
         <label class="modal-chk-row">
           <input type="checkbox" id="modal-chk">
-          <span class="lbl">MD PICK</span>
+          <span class="lbl">📌 MD PICK</span>
         </label>
         <label class="modal-chk-row pick">
           <input type="checkbox" id="modal-pick-chk">
