@@ -214,6 +214,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent        # 출력(HTML·xlsx) 위치
 OUT = SCRIPT_DIR / "index.html"                     # GitHub Pages 루트 진입용
 FIT_OVERRIDES_XLSX = SCRIPT_DIR / "fit_overrides.xlsx"  # 사용자 수기 입력 반영 (있으면 적용)
 
+# ── Supabase 협업 연동 설정 ────────────────────────────────────────────
+# 1) https://supabase.com 프로젝트 > Settings > API 에서 URL·anon key 확인
+# 2) anon key는 공개되어도 안전 (RLS 정책으로 보호됨)
+# 3) 빈 값이면 localStorage 전용 모드로 폴백 (협업 비활성)
+# 4) 환경변수로 주입하거나 아래 상수에 직접 입력
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "")
+ALLOWED_EMAIL_DOMAIN = "@fnfcorp.com"
+
 # ── 브랜드 ↔ 라인 매핑 ──────────────────────────────────────────────────────────
 LINES = [
     ("classic",  "클래식",    "#2E7D32",  ["lacoste", "rl", "celine", "loropiana", "sportyandrich"]),
@@ -1212,7 +1221,7 @@ def render_html(matrix: dict) -> str:
     # 선택된 항목 탭 추가 (오른쪽)
     tabs_nav += (
         '\n<button class="tab-btn tab-btn-selected" data-tab="__selected__">'
-        '<span class="tab-lbl">✓ 선택된 항목 <span class="tab-count" id="tab-count-selected">0</span></span>'
+        '<span class="tab-lbl">✓ MD PICK <span class="tab-count" id="tab-count-selected">0</span></span>'
         '</button>'
     )
     # 디자이너 PICK 탭 추가 (맨 오른쪽)
@@ -1381,6 +1390,11 @@ def render_html(matrix: dict) -> str:
     core_count = sum(1 for v in items_js_map.values() if v["match"] == "core")
     adapt_count = sum(1 for v in items_js_map.values() if v["match"] == "adapt")
 
+    # Supabase 협업 설정 (JS에 주입)
+    supabase_url_json = json.dumps(SUPABASE_URL or "")
+    supabase_key_json = json.dumps(SUPABASE_ANON_KEY or "")
+    supabase_domain_json = json.dumps(ALLOWED_EMAIL_DOMAIN)
+
     return f"""<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8">
 <title>F&amp;F · Brand Matrix Dashboard</title>
@@ -1388,6 +1402,7 @@ def render_html(matrix: dict) -> str:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {{
     --bg: #f5f6f8;
@@ -2212,6 +2227,63 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
 .capture-mode .matrix-scroll {{ overflow: visible; }}
 .capture-mode .corner-th, .capture-mode .line-th {{ position: static; }}
 .capture-mode .matrix thead th {{ position: static; }}
+
+/* ── Supabase 협업: Auth Modal · User Pill · Attribution Badge ── */
+.auth-modal-inner {{
+    max-width: 440px; padding: 32px; background: #fff;
+    border-radius: 16px; box-shadow: var(--shadow-lg);
+    display: flex; flex-direction: column; gap: 14px;
+}}
+.auth-title {{ font-size: 22px; font-weight: 700; color: var(--ink); }}
+.auth-desc {{ color: var(--ink-3); font-size: 13px; line-height: 1.55; margin-bottom: 4px; }}
+.auth-row {{ display: flex; gap: 8px; }}
+.auth-row input {{
+    flex: 1; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font: inherit; font-size: 14px;
+}}
+.auth-row input:focus {{ outline: none; border-color: var(--ink); }}
+.auth-row button {{
+    padding: 10px 16px; border-radius: 8px; background: var(--ink);
+    color: #fff; border: 0; cursor: pointer; font-weight: 600; font-size: 13px;
+}}
+.auth-row button:disabled {{ opacity: .5; cursor: not-allowed; }}
+.auth-status {{ min-height: 18px; font-size: 12.5px; line-height: 1.5; }}
+.auth-status.ok {{ color: #047857; }}
+.auth-status.error {{ color: #dc2626; }}
+.auth-hint {{ font-size: 11.5px; color: var(--ink-4); }}
+.auth-skip {{
+    align-self: flex-start; background: transparent; border: 1px solid var(--line);
+    color: var(--ink-3); padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; font-size: 11.5px; font-weight: 500;
+}}
+
+.user-pill {{
+    position: fixed; top: 12px; right: 12px; z-index: 1000;
+    background: var(--ink); color: #fff; border-radius: 100px;
+    padding: 6px 10px 6px 14px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow);
+}}
+.user-pill .u-dot {{ width: 6px; height: 6px; border-radius: 50%; background: #10b981; }}
+.user-pill button {{
+    background: transparent; border: 1px solid rgba(255,255,255,.25);
+    color: #fff; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; cursor: pointer;
+}}
+.user-pill button:hover {{ background: rgba(255,255,255,.1); }}
+
+/* 팀원 attribution 배지 (썸네일 좌하단) */
+.attr-badge {{
+    position: absolute; bottom: 4px; left: 4px;
+    background: rgba(15,17,21,.85); color: #fff;
+    font-size: 9px; font-weight: 700; letter-spacing: .01em;
+    padding: 2px 6px; border-radius: 100px;
+    z-index: 3; cursor: help; pointer-events: auto;
+    display: flex; align-items: center; gap: 3px;
+    line-height: 1.2;
+}}
+.attr-badge .me-dot {{ width: 5px; height: 5px; border-radius: 50%; background: #10b981; }}
+.capture-mode .attr-badge {{ display: none; }}
 </style></head>
 <body>
 <div class="app">
@@ -2221,10 +2293,10 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
       <button id="btn-download-rec" title="⭐✨ 추천 항목 전체 이미지 ZIP (브라우저 · 일부 썸네일 폴백)">⭐✨ 추천 ZIP</button>
       <button id="btn-backup-hires" class="hires" title="⭐✨ 추천 백업 JSON 저장 후 download_hires.py로 원본 고화질 다운로드">🔥 고화질용 백업</button>
       <span class="sel-divider"></span>
-      <span class="sel-count">선택 <strong id="sel-count">0</strong> / {total}</span>
-      <button id="btn-backup" title="선택 백업 JSON 다운로드">백업</button>
-      <button id="btn-export-xlsx" class="primary" title="선택 항목 이미지 ZIP (브라우저)">선택 ZIP</button>
-      <button id="btn-clear-all" class="danger" title="선택 전체 해제">전체 해제</button>
+      <span class="sel-count">MD PICK <strong id="sel-count">0</strong> / {total}</span>
+      <button id="btn-backup" title="MD PICK 백업 JSON 다운로드">MD 백업</button>
+      <button id="btn-export-xlsx" class="primary" title="MD PICK 이미지 ZIP (브라우저)">MD ZIP</button>
+      <button id="btn-clear-all" class="danger" title="MD PICK 전체 해제">MD 해제</button>
       <span class="sel-divider"></span>
       <span class="sel-count">PICK <strong id="pick-count">0</strong></span>
       <button id="btn-backup-pick" title="디자이너 PICK 백업 JSON 다운로드">PICK 백업</button>
@@ -2304,8 +2376,8 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
     <div id="panel-selected" data-panel="__selected__">
       <div class="section-head">
         <div class="section-title-group">
-          <span class="section-kicker">SELECTED</span>
-          <h2 class="section-title">선택된 항목 <span id="panel-selected-count" style="color:var(--ink-3);font-weight:600">(0)</span></h2>
+          <span class="section-kicker">MD PICK</span>
+          <h2 class="section-title">MD PICK <span id="panel-selected-count" style="color:var(--ink-3);font-weight:600">(0)</span></h2>
         </div>
       </div>
       <div id="selected-body"></div>
@@ -2330,6 +2402,31 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
 
 <div id="toast"></div>
 
+<!-- User Pill (로그인 시 상단 우측 표시) -->
+<div id="user-pill" class="user-pill" style="display:none">
+  <span class="u-dot"></span>
+  <span id="user-pill-email">—</span>
+  <button id="user-pill-logout" title="로그아웃">로그아웃</button>
+</div>
+
+<!-- Auth Modal (세션 없을 때 차단) -->
+<div id="auth-modal" class="modal-backdrop" aria-hidden="true">
+  <div class="auth-modal-inner" role="dialog" aria-labelledby="auth-title">
+    <div class="auth-title" id="auth-title">F&amp;F · Brand Matrix 로그인</div>
+    <div class="auth-desc">
+      팀원과 MD PICK / 디자이너 PICK 을 실시간으로 공유하려면
+      <strong>F&amp;F 이메일</strong>로 로그인해주세요. 받은 링크를 클릭하면 자동 로그인됩니다.
+    </div>
+    <div class="auth-row">
+      <input id="auth-email" type="email" placeholder="name@fnfcorp.com" autocomplete="email">
+      <button id="auth-send" type="button">매직 링크 전송</button>
+    </div>
+    <div id="auth-status" class="auth-status"></div>
+    <div class="auth-hint">이메일을 확인해 링크를 클릭하면 이 탭이 자동으로 로그인됩니다.</div>
+    <button id="auth-skip" class="auth-skip" type="button">읽기 전용으로 보기</button>
+  </div>
+</div>
+
 <div id="modal" class="modal-backdrop" aria-hidden="true">
   <div class="modal" role="dialog">
     <div class="modal-img-wrap">
@@ -2344,7 +2441,7 @@ body.has-filter .gallery-cell.hidden-all {{ opacity: .35; }}
       <div class="modal-actions">
         <label class="modal-chk-row">
           <input type="checkbox" id="modal-chk">
-          <span class="lbl">이미지 재생성 후보로 선택</span>
+          <span class="lbl">MD PICK</span>
         </label>
         <label class="modal-chk-row pick">
           <input type="checkbox" id="modal-pick-chk">
@@ -2365,25 +2462,48 @@ const ITEMS = {items_json};
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-// ── 선택 상태 (localStorage 영속) ──
+// ── Supabase 협업 설정 (Python에서 주입) ──
+const SUPABASE_CFG = {{
+    url: {supabase_url_json},
+    key: {supabase_key_json},
+    domain: {supabase_domain_json}
+}};
+const SUPABASE_ENABLED = !!(SUPABASE_CFG.url && SUPABASE_CFG.key);
+let sb = null;
+let currentUser = null;  // {{ email }} or null (읽기전용/오프라인)
+// 팀원 전체 상태: Map<item_id, Set<email>>
+const remoteMdPicks = new Map();
+const remoteDesignerPicks = new Map();
+if (SUPABASE_ENABLED && window.supabase) {{
+    sb = window.supabase.createClient(SUPABASE_CFG.url, SUPABASE_CFG.key, {{
+        auth: {{ persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }}
+    }});
+}}
+
+// ── 로컬 상태 (낙관적 업데이트 + Supabase 미설정 시 폴백) ──
 const STORAGE_KEY = 'line_matrix_selected_v1';
 const PICK_KEY = 'line_matrix_designer_pick_v1';
 const TOTAL_ITEMS = {total};
 let selected = new Set();
 let designerPicks = new Set();
-try {{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) selected = new Set(JSON.parse(raw));
-}} catch (e) {{ console.warn('localStorage read failed:', e); }}
-try {{
-    const raw = localStorage.getItem(PICK_KEY);
-    if (raw) designerPicks = new Set(JSON.parse(raw));
-}} catch (e) {{ console.warn('pick storage read failed:', e); }}
+// Supabase 비활성 상태에서만 localStorage 로드 (활성 시 로그인 후 DB에서 로드)
+if (!SUPABASE_ENABLED) {{
+    try {{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) selected = new Set(JSON.parse(raw));
+    }} catch (e) {{ console.warn('localStorage read failed:', e); }}
+    try {{
+        const raw = localStorage.getItem(PICK_KEY);
+        if (raw) designerPicks = new Set(JSON.parse(raw));
+    }} catch (e) {{ console.warn('pick storage read failed:', e); }}
+}}
 
 function persist() {{
-    try {{
-        localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
-    }} catch (e) {{ console.error('localStorage write failed:', e); }}
+    if (!SUPABASE_ENABLED) {{
+        try {{
+            localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
+        }} catch (e) {{ console.error('localStorage write failed:', e); }}
+    }}
     updateSelCount();
 }}
 
@@ -2397,21 +2517,53 @@ function updateSelCount() {{
     if (pEl) pEl.textContent = '(' + n + ')';
 }}
 
-function applySelected(id, on) {{
+async function applySelected(id, on) {{
+    // Supabase 활성 + 미로그인 → 쓰기 차단, 읽기전용 안내
+    if (SUPABASE_ENABLED && !currentUser) {{
+        showToast('로그인 후 사용할 수 있습니다', true);
+        // 체크박스 되돌리기
+        document.querySelectorAll('input.item-chk[data-id="' + id + '"]').forEach(el => el.checked = !on);
+        const mchk = document.getElementById('modal-chk');
+        if (mchk && mchk.dataset.id === id) mchk.checked = !on;
+        return;
+    }}
+    // 낙관적 로컬 업데이트
     if (on) selected.add(id); else selected.delete(id);
-    // 모든 동일 id 체크박스 · thumb 상태 동기화
-    document.querySelectorAll('input.item-chk[data-id="' + id + '"]').forEach(el => {{
-        el.checked = on;
-    }});
+    document.querySelectorAll('input.item-chk[data-id="' + id + '"]').forEach(el => {{ el.checked = on; }});
     document.querySelectorAll('.thumb[data-id="' + id + '"]').forEach(el => {{
         el.classList.toggle('is-selected', on);
     }});
     const mchk = document.getElementById('modal-chk');
     if (mchk && mchk.dataset.id === id) mchk.checked = on;
     persist();
-    // 선택 탭이 활성화되어 있으면 재렌더 (선택 해제 시 해당 썸네일 제거 반영)
     if (document.getElementById('panel-selected').classList.contains('active')) {{
         renderSelectedPanel();
+    }}
+    // Supabase 동기화
+    if (sb && currentUser) {{
+        try {{
+            if (on) {{
+                const {{ error }} = await sb.from('md_picks').upsert(
+                    {{ user_email: currentUser.email, item_id: id }},
+                    {{ onConflict: 'user_email,item_id' }}
+                );
+                if (error) throw error;
+                if (!remoteMdPicks.has(id)) remoteMdPicks.set(id, new Set());
+                remoteMdPicks.get(id).add(currentUser.email);
+            }} else {{
+                const {{ error }} = await sb.from('md_picks').delete()
+                    .eq('user_email', currentUser.email).eq('item_id', id);
+                if (error) throw error;
+                if (remoteMdPicks.has(id)) {{
+                    remoteMdPicks.get(id).delete(currentUser.email);
+                    if (!remoteMdPicks.get(id).size) remoteMdPicks.delete(id);
+                }}
+            }}
+            renderAttributionBadgesFor(id);
+        }} catch (e) {{
+            console.error('[md_picks sync error]', e);
+            showToast('동기화 실패 — 네트워크 확인 필요', true);
+        }}
     }}
 }}
 
@@ -2428,9 +2580,11 @@ function restoreAllCheckboxes() {{
 
 // ── 디자이너 PICK 상태 관리 ──
 function persistPicks() {{
-    try {{
-        localStorage.setItem(PICK_KEY, JSON.stringify([...designerPicks]));
-    }} catch (e) {{ console.error('pick persist failed:', e); }}
+    if (!SUPABASE_ENABLED) {{
+        try {{
+            localStorage.setItem(PICK_KEY, JSON.stringify([...designerPicks]));
+        }} catch (e) {{ console.error('pick persist failed:', e); }}
+    }}
     updatePickCount();
 }}
 
@@ -2444,7 +2598,13 @@ function updatePickCount() {{
     if (pEl) pEl.textContent = '(' + n + ')';
 }}
 
-function applyPick(id, on) {{
+async function applyPick(id, on) {{
+    if (SUPABASE_ENABLED && !currentUser) {{
+        showToast('로그인 후 사용할 수 있습니다', true);
+        const mpchk0 = document.getElementById('modal-pick-chk');
+        if (mpchk0 && mpchk0.dataset.id === id) mpchk0.checked = !on;
+        return;
+    }}
     if (on) designerPicks.add(id); else designerPicks.delete(id);
     document.querySelectorAll('.thumb[data-id="' + id + '"]').forEach(el => {{
         el.classList.toggle('is-pick', on);
@@ -2455,6 +2615,31 @@ function applyPick(id, on) {{
     const pickP = document.getElementById('panel-pick');
     if (pickP && pickP.classList.contains('active')) {{
         renderPickPanel();
+    }}
+    if (sb && currentUser) {{
+        try {{
+            if (on) {{
+                const {{ error }} = await sb.from('designer_picks').upsert(
+                    {{ user_email: currentUser.email, item_id: id }},
+                    {{ onConflict: 'user_email,item_id' }}
+                );
+                if (error) throw error;
+                if (!remoteDesignerPicks.has(id)) remoteDesignerPicks.set(id, new Set());
+                remoteDesignerPicks.get(id).add(currentUser.email);
+            }} else {{
+                const {{ error }} = await sb.from('designer_picks').delete()
+                    .eq('user_email', currentUser.email).eq('item_id', id);
+                if (error) throw error;
+                if (remoteDesignerPicks.has(id)) {{
+                    remoteDesignerPicks.get(id).delete(currentUser.email);
+                    if (!remoteDesignerPicks.get(id).size) remoteDesignerPicks.delete(id);
+                }}
+            }}
+            renderAttributionBadgesFor(id);
+        }} catch (e) {{
+            console.error('[designer_picks sync error]', e);
+            showToast('동기화 실패 — 네트워크 확인 필요', true);
+        }}
     }}
 }}
 
@@ -2593,7 +2778,7 @@ document.addEventListener('keydown', (e) => {{
 function renderSelectedPanel() {{
     const body = document.getElementById('selected-body');
     if (!selected.size) {{
-        body.innerHTML = '<div class="sel-empty">아직 선택된 항목이 없습니다. 각 탭에서 이미지의 체크박스를 클릭하여 선택하세요.</div>';
+        body.innerHTML = '<div class="sel-empty">아직 MD PICK 된 항목이 없습니다. 각 탭에서 체크박스를 클릭하거나 모달 안에서 MD PICK 하세요.</div>';
         return;
     }}
     // 탭별로 그룹화
@@ -2706,8 +2891,9 @@ async function downloadPickZip() {{
     await downloadIdsAsZip(designerPicks, document.getElementById('btn-export-pick-zip'), 'designer_pick');
 }}
 
-function clearAllPicks() {{
+async function clearAllPicks() {{
     if (!designerPicks.size) {{ showToast('PICK 항목이 없습니다'); return; }}
+    if (SUPABASE_ENABLED && !currentUser) {{ showToast('로그인 후 사용할 수 있습니다', true); return; }}
     if (!confirm('디자이너 PICK ' + designerPicks.size + '건을 모두 해제하시겠습니까?')) return;
     const ids = [...designerPicks];
     designerPicks.clear();
@@ -2717,6 +2903,22 @@ function clearAllPicks() {{
     }});
     if (document.getElementById('panel-pick').classList.contains('active')) {{
         renderPickPanel();
+    }}
+    if (sb && currentUser) {{
+        try {{
+            const {{ error }} = await sb.from('designer_picks').delete().eq('user_email', currentUser.email);
+            if (error) throw error;
+            ids.forEach(id => {{
+                if (remoteDesignerPicks.has(id)) {{
+                    remoteDesignerPicks.get(id).delete(currentUser.email);
+                    if (!remoteDesignerPicks.get(id).size) remoteDesignerPicks.delete(id);
+                }}
+                renderAttributionBadgesFor(id);
+            }});
+        }} catch (e) {{
+            console.error('[clear designer_picks error]', e);
+            showToast('동기화 실패 — 새로고침하여 확인하세요', true);
+        }}
     }}
     showToast('PICK 전체 해제 완료');
 }}
@@ -2742,10 +2944,10 @@ function downloadBackup() {{
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
-    a.href = url; a.download = 'selected_backup_' + ts + '.json';
+    a.href = url; a.download = 'md_pick_backup_' + ts + '.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('백업 JSON 다운로드 완료 — ' + arr.length + '건');
+    showToast('MD PICK 백업 JSON 다운로드 — ' + arr.length + '건');
 }}
 
 // ── PNG ZIP 다운로드 ──
@@ -2800,8 +3002,8 @@ async function downloadIdsAsZip(ids, btnEl, prefix) {{
 }}
 
 async function downloadImagesZip() {{
-    if (!selected.size) {{ showToast('선택된 항목이 없습니다', true); return; }}
-    await downloadIdsAsZip(selected, document.getElementById('btn-export-xlsx'), 'selected_images');
+    if (!selected.size) {{ showToast('MD PICK 된 항목이 없습니다', true); return; }}
+    await downloadIdsAsZip(selected, document.getElementById('btn-export-xlsx'), 'md_pick_images');
 }}
 
 // ⭐✨ 추천 항목 전체 다운로드 (선택 불필요)
@@ -2916,9 +3118,10 @@ document.querySelectorAll('.legend-item').forEach(el => {{
 }});
 
 // ── 전체 해제 ──
-function clearAllSelections() {{
-    if (!selected.size) {{ showToast('선택된 항목이 없습니다'); return; }}
-    if (!confirm('선택된 ' + selected.size + '건을 모두 해제하시겠습니까?')) return;
+async function clearAllSelections() {{
+    if (!selected.size) {{ showToast('MD PICK 된 항목이 없습니다'); return; }}
+    if (SUPABASE_ENABLED && !currentUser) {{ showToast('로그인 후 사용할 수 있습니다', true); return; }}
+    if (!confirm('MD PICK ' + selected.size + '건을 모두 해제하시겠습니까?')) return;
     const ids = [...selected];
     selected.clear();
     persist();
@@ -2929,7 +3132,23 @@ function clearAllSelections() {{
     if (document.getElementById('panel-selected').classList.contains('active')) {{
         renderSelectedPanel();
     }}
-    showToast('전체 해제 완료');
+    if (sb && currentUser) {{
+        try {{
+            const {{ error }} = await sb.from('md_picks').delete().eq('user_email', currentUser.email);
+            if (error) throw error;
+            ids.forEach(id => {{
+                if (remoteMdPicks.has(id)) {{
+                    remoteMdPicks.get(id).delete(currentUser.email);
+                    if (!remoteMdPicks.get(id).size) remoteMdPicks.delete(id);
+                }}
+                renderAttributionBadgesFor(id);
+            }});
+        }} catch (e) {{
+            console.error('[clear md_picks error]', e);
+            showToast('동기화 실패 — 새로고침하여 확인하세요', true);
+        }}
+    }}
+    showToast('MD PICK 전체 해제 완료');
 }}
 
 document.getElementById('btn-backup').addEventListener('click', downloadBackup);
@@ -2970,6 +3189,249 @@ applyZoom(savedZoom);
 restoreAllCheckboxes();
 restoreAllPickMarks();
 applyFilterState();
+
+// ── Supabase Auth · Realtime · Attribution ────────────────────────────
+async function initSupabase() {{
+    if (!SUPABASE_ENABLED) {{
+        console.info('[Supabase] 설정 없음 — localStorage 전용 모드');
+        return;
+    }}
+    if (!sb) {{
+        console.warn('[Supabase] SDK 로드 실패');
+        return;
+    }}
+    const {{ data: {{ session }} }} = await sb.auth.getSession();
+    if (session && session.user) {{
+        await onLogin(session.user);
+    }} else {{
+        showAuthModal();
+    }}
+    sb.auth.onAuthStateChange((event, s) => {{
+        if (event === 'SIGNED_IN' && s && s.user) onLogin(s.user);
+        else if (event === 'SIGNED_OUT') onLogout();
+    }});
+}}
+
+async function onLogin(user) {{
+    currentUser = {{ email: user.email }};
+    hideAuthModal();
+    showUserPill(user.email);
+    await loadRemoteAll();
+    subscribeRealtime();
+}}
+
+function onLogout() {{
+    currentUser = null;
+    hideUserPill();
+    selected.clear(); designerPicks.clear();
+    remoteMdPicks.clear(); remoteDesignerPicks.clear();
+    restoreAllCheckboxes();
+    restoreAllPickMarks();
+    document.querySelectorAll('.attr-badge').forEach(el => el.remove());
+    showAuthModal();
+}}
+
+async function loadRemoteAll() {{
+    try {{
+        const {{ data: md, error: e1 }} = await sb.from('md_picks').select('user_email,item_id');
+        if (e1) throw e1;
+        remoteMdPicks.clear(); selected.clear();
+        (md || []).forEach(r => {{
+            if (!remoteMdPicks.has(r.item_id)) remoteMdPicks.set(r.item_id, new Set());
+            remoteMdPicks.get(r.item_id).add(r.user_email);
+            if (currentUser && r.user_email === currentUser.email) selected.add(r.item_id);
+        }});
+        const {{ data: dp, error: e2 }} = await sb.from('designer_picks').select('user_email,item_id');
+        if (e2) throw e2;
+        remoteDesignerPicks.clear(); designerPicks.clear();
+        (dp || []).forEach(r => {{
+            if (!remoteDesignerPicks.has(r.item_id)) remoteDesignerPicks.set(r.item_id, new Set());
+            remoteDesignerPicks.get(r.item_id).add(r.user_email);
+            if (currentUser && r.user_email === currentUser.email) designerPicks.add(r.item_id);
+        }});
+        restoreAllCheckboxes();
+        restoreAllPickMarks();
+        renderAllAttributionBadges();
+        updateSelCount(); updatePickCount();
+    }} catch (e) {{
+        console.error('[loadRemoteAll]', e);
+        showToast('데이터 로드 실패: ' + (e.message || e), true);
+    }}
+}}
+
+function subscribeRealtime() {{
+    if (!sb) return;
+    sb.channel('md_picks_rt')
+      .on('postgres_changes', {{event: '*', schema: 'public', table: 'md_picks'}}, handleMdPickChange)
+      .subscribe();
+    sb.channel('designer_picks_rt')
+      .on('postgres_changes', {{event: '*', schema: 'public', table: 'designer_picks'}}, handleDesignerPickChange)
+      .subscribe();
+}}
+
+function handleMdPickChange(payload) {{
+    const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
+    if (!row || !row.item_id) return;
+    const itemId = row.item_id, email = row.user_email;
+    const isMine = currentUser && email === currentUser.email;
+    if (payload.eventType === 'INSERT') {{
+        if (!remoteMdPicks.has(itemId)) remoteMdPicks.set(itemId, new Set());
+        remoteMdPicks.get(itemId).add(email);
+        if (isMine) {{ selected.add(itemId); syncThumbSelected(itemId, true); }}
+    }} else if (payload.eventType === 'DELETE') {{
+        if (remoteMdPicks.has(itemId)) {{
+            remoteMdPicks.get(itemId).delete(email);
+            if (!remoteMdPicks.get(itemId).size) remoteMdPicks.delete(itemId);
+        }}
+        if (isMine) {{ selected.delete(itemId); syncThumbSelected(itemId, false); }}
+    }}
+    renderAttributionBadgesFor(itemId);
+    updateSelCount();
+    if (isMine && document.getElementById('panel-selected').classList.contains('active')) {{
+        renderSelectedPanel();
+    }}
+}}
+
+function handleDesignerPickChange(payload) {{
+    const row = payload.new && Object.keys(payload.new).length ? payload.new : payload.old;
+    if (!row || !row.item_id) return;
+    const itemId = row.item_id, email = row.user_email;
+    const isMine = currentUser && email === currentUser.email;
+    if (payload.eventType === 'INSERT') {{
+        if (!remoteDesignerPicks.has(itemId)) remoteDesignerPicks.set(itemId, new Set());
+        remoteDesignerPicks.get(itemId).add(email);
+        if (isMine) {{ designerPicks.add(itemId); syncThumbPick(itemId, true); }}
+    }} else if (payload.eventType === 'DELETE') {{
+        if (remoteDesignerPicks.has(itemId)) {{
+            remoteDesignerPicks.get(itemId).delete(email);
+            if (!remoteDesignerPicks.get(itemId).size) remoteDesignerPicks.delete(itemId);
+        }}
+        if (isMine) {{ designerPicks.delete(itemId); syncThumbPick(itemId, false); }}
+    }}
+    renderAttributionBadgesFor(itemId);
+    updatePickCount();
+    if (isMine && document.getElementById('panel-pick').classList.contains('active')) {{
+        renderPickPanel();
+    }}
+}}
+
+function syncThumbSelected(itemId, on) {{
+    document.querySelectorAll('.thumb[data-id="' + itemId + '"]').forEach(el => el.classList.toggle('is-selected', on));
+    document.querySelectorAll('input.item-chk[data-id="' + itemId + '"]').forEach(el => el.checked = on);
+    const mchk = document.getElementById('modal-chk');
+    if (mchk && mchk.dataset.id === itemId) mchk.checked = on;
+}}
+
+function syncThumbPick(itemId, on) {{
+    document.querySelectorAll('.thumb[data-id="' + itemId + '"]').forEach(el => el.classList.toggle('is-pick', on));
+    const mpchk = document.getElementById('modal-pick-chk');
+    if (mpchk && mpchk.dataset.id === itemId) mpchk.checked = on;
+}}
+
+// Attribution 배지: 썸네일 좌하단 "👤N" + tooltip (누가 MD/PICK 했는지)
+function renderAttributionBadgesFor(itemId) {{
+    const mdSet = remoteMdPicks.get(itemId) || new Set();
+    const pickSet = remoteDesignerPicks.get(itemId) || new Set();
+    const allEmails = new Set([...mdSet, ...pickSet]);
+    document.querySelectorAll('.thumb[data-id="' + itemId + '"]').forEach(el => {{
+        let attr = el.querySelector(':scope > .attr-badge');
+        if (!allEmails.size) {{ if (attr) attr.remove(); return; }}
+        if (!attr) {{
+            attr = document.createElement('div');
+            attr.className = 'attr-badge';
+            el.appendChild(attr);
+        }}
+        const hasMe = currentUser && allEmails.has(currentUser.email);
+        const inner = (hasMe ? '<span class="me-dot"></span>' : '') + '👤' + allEmails.size;
+        attr.innerHTML = inner;
+        const lines = [...allEmails].map(e => {{
+            const tags = [];
+            if (mdSet.has(e)) tags.push('MD');
+            if (pickSet.has(e)) tags.push('PICK');
+            return e.split('@')[0] + ' (' + tags.join('+') + ')';
+        }});
+        attr.title = lines.join('\\n');
+    }});
+}}
+
+function renderAllAttributionBadges() {{
+    document.querySelectorAll('.attr-badge').forEach(el => el.remove());
+    const ids = new Set([...remoteMdPicks.keys(), ...remoteDesignerPicks.keys()]);
+    ids.forEach(renderAttributionBadgesFor);
+}}
+
+// Auth UI helpers
+function showAuthModal() {{
+    const m = document.getElementById('auth-modal');
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    setTimeout(() => {{ const i = document.getElementById('auth-email'); if (i) i.focus(); }}, 100);
+}}
+function hideAuthModal() {{
+    const m = document.getElementById('auth-modal');
+    m.classList.remove('open');
+    m.setAttribute('aria-hidden', 'true');
+}}
+function showUserPill(email) {{
+    const pill = document.getElementById('user-pill');
+    document.getElementById('user-pill-email').textContent = email;
+    pill.style.display = '';
+}}
+function hideUserPill() {{ document.getElementById('user-pill').style.display = 'none'; }}
+
+async function sendMagicLink() {{
+    const emailEl = document.getElementById('auth-email');
+    const statusEl = document.getElementById('auth-status');
+    const btn = document.getElementById('auth-send');
+    const email = (emailEl.value || '').trim().toLowerCase();
+    if (!email) {{
+        statusEl.textContent = '이메일을 입력해주세요'; statusEl.className = 'auth-status error'; return;
+    }}
+    if (!email.endsWith(SUPABASE_CFG.domain)) {{
+        statusEl.textContent = SUPABASE_CFG.domain + ' 이메일만 허용됩니다';
+        statusEl.className = 'auth-status error'; return;
+    }}
+    btn.disabled = true;
+    statusEl.textContent = '전송 중...'; statusEl.className = 'auth-status';
+    const redirect = window.location.origin + window.location.pathname;
+    const {{ error }} = await sb.auth.signInWithOtp({{
+        email,
+        options: {{ emailRedirectTo: redirect }}
+    }});
+    btn.disabled = false;
+    if (error) {{
+        statusEl.textContent = '전송 실패: ' + error.message;
+        statusEl.className = 'auth-status error';
+    }} else {{
+        statusEl.innerHTML = '✉️ <strong>' + email + '</strong> 로 링크 전송 — 메일함을 확인하세요';
+        statusEl.className = 'auth-status ok';
+    }}
+}}
+
+async function doLogout() {{
+    if (!sb) return;
+    await sb.auth.signOut();
+}}
+
+// Auth UI 이벤트 바인딩
+(function bindAuthEvents() {{
+    const sendBtn = document.getElementById('auth-send');
+    if (sendBtn) sendBtn.addEventListener('click', sendMagicLink);
+    const emailInp = document.getElementById('auth-email');
+    if (emailInp) emailInp.addEventListener('keydown', e => {{
+        if (e.key === 'Enter') {{ e.preventDefault(); sendMagicLink(); }}
+    }});
+    const skipBtn = document.getElementById('auth-skip');
+    if (skipBtn) skipBtn.addEventListener('click', () => {{
+        hideAuthModal();
+        showToast('읽기 전용 모드 — 변경사항은 저장되지 않습니다', true);
+    }});
+    const logoutBtn = document.getElementById('user-pill-logout');
+    if (logoutBtn) logoutBtn.addEventListener('click', doLogout);
+}})();
+
+// Supabase 부팅
+initSupabase();
 
 // ── Toast ──
 const toastEl = document.getElementById('toast');
