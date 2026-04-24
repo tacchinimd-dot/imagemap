@@ -1,6 +1,6 @@
 # 라인 × 핏 매트릭스 (Image Map) — 작업 현황
 
-> **마지막 업데이트:** 2026-04-22 (Supabase 실시간 협업 연동 완료 · "재생성 선택" → "📌 MD PICK" 네이밍 + 파란색 테마)
+> **마지막 업데이트:** 2026-04-24 (**FILA + Diadora 스포츠 라인 편입, 14브랜드 체계** · 추천 PNG 배치 추출기 추가)
 > **위치:** `C:\Users\AD0903\imagemap\` (스크립트·산출물·xlsx) / `C:\Users\AD0903\brand_crawler\` (raw 데이터·캐시·스틸컷)
 > **Git 레포:** [tacchinimd-dot/imagemap](https://github.com/tacchinimd-dot/imagemap) (2026-04-21 분리)
 > **/imagemap 커맨드 전용 STATUS** — /crawler와 분리 운영
@@ -10,7 +10,7 @@
 
 ## 프로젝트 목적
 
-**12개 브랜드**(Wilson·Alo·Lacoste·Ralph Lauren·Descente·Lululemon·Celine·Loro Piana·Skims·Miu Miu·Prada·Sporty & Rich) 의류 상품을
+**14개 브랜드**(Wilson·Alo·Lacoste·Ralph Lauren·Descente·Lululemon·Celine·Loro Piana·Skims·Miu Miu·Prada·Sporty & Rich·**FILA**·**Diadora**) 의류 상품을
 **3라인(클래식·어슬레져·스포츠)** × **8개 아이템 탭** × **탭별 상이한 핏/실루엣/기장 축**으로 매트릭스 배치.
 **목적**: Sergio Tacchini 브랜드 방향성에 맞는 이미지 재생성 후보 선정 (유관부서 전달용).
 
@@ -33,7 +33,7 @@
 |---|---|---|---|
 | 클래식 | Lacoste + Ralph Lauren + Celine + Loro Piana + Sporty & Rich | #047857 (forest) | 144 + 148 + 21 + 159 + 290 |
 | 어슬레져 | Alo + Lululemon + Skims + Miu Miu + Prada | #2563eb (royal blue) | 156 + 55 + 128 + 169 + 49 |
-| 스포츠 | Wilson + Descente | #dc2626 (red) | 60 + 48 |
+| 스포츠 | Wilson + Descente + **FILA** + **Diadora** | #dc2626 (red) | 60 + 48 + 206 + 323 |
 
 ---
 
@@ -330,6 +330,85 @@
 - `make_fit_overrides.py` — DROPDOWN_SKIRT(4값)·DROPDOWN_DRESS 추가, FIT_LABELS 확장
 - `_sample_skims_flt.py` (신규) — Skims `-FLT` 패턴 확인용 샘플 갤러리
 - HTML 크기 4.5MB → **17.5MB** (ITEMS JSON + 드레스 + 롱슬리브 포함)
+
+### ✅ Step 12 — FILA + Diadora 스포츠 라인 편입 + 추천 PNG 추출 (완료, 2026-04-24)
+
+#### 추가 브랜드
+- **FILA** (Shopify products.json, 한글 헤더) → `load_fila()` — `_load_xlsx_kor("fila")` 재사용
+- **Diadora** (Cafe24 SSR, 혼합 헤더: 한글 카테고리 + 영문 VISION_*) → `load_diadora()` — 별도 파서
+- 두 브랜드 모두 **스포츠 라인** (`LINES`에 편입, BRAND_LABEL 등록)
+
+#### `classify_st_match()` 규칙 확장 (2026-04-24 후속 — Court Active 승격)
+- **TH4 그룹** = `(Lacoste, Wilson, FILA, Diadora)` — Court Active 테니스·코트 헤리티지
+  - 사용자 확정(2026-04-24): FILA/Diadora는 Lacoste/Wilson과 동등한 테니스 뿌리. 기존 SPH(키워드 필터)에서 승격
+  - **폴로·스커트·쇼츠·드레스(미니/미디)** 탭에서 **무조건 CORE** (키워드 불필요)
+- `is_sph = brand in ("fila","diadora")` — 아우터·맨투맨·티셔츠·스웨터에서 브랜드 특화 ADAPT 판정에만 사용
+- FILA/Diadora 특화 키워드 `sph_kw`: 테니스·트랙·클래식·플리츠·바람막이·카라티·폴리피케·피케·니트트랙·링거·레터링·이탈리안·헤리티지 등
+- **폴로**: SPH는 `st_kw OR sph_kw` 시 CORE (FILA 카라티 6건 전량 매칭)
+- **스커트**: SPH는 `st_kw OR sph_kw OR has_pleats` 시 CORE (테니스 플리츠 전량 매칭)
+- **쇼츠**: SPH는 키워드 필수 CORE / 그 외 SPH 바지는 ADAPT
+- **아우터**: 쿠쉬라이트 키워드(track·crop·windbreak·bomber·바람막이) CORE는 브랜드 무관 유지 / SPH 기타 아우터는 ADAPT
+- **드레스**: SPH는 미니 + 키워드 있으면 CORE / 그 외 SPH 미니 드레스는 ADAPT
+- **맨투맨**: SPH는 레트로 키워드 CORE / 기타는 ADAPT
+- **티셔츠·스웨터**: SPH는 `sph_kw` 有 + 로고·프린트 키워드 부재 시 ADAPT로 수용 (FILA 테니스 소로나 카라티 등)
+
+#### 분포 (FILA 206 + Diadora 323 = 529건, Court Active TH4 승격 후)
+| 브랜드 | CORE ⭐ | ADAPT ✨ | 합계 |
+|---|---:|---:|---:|
+| **FILA** | **65** | 39 | **104** |
+| **Diadora** | **84** | 43 | **127** |
+| 합계 | **149** | 82 | **231** |
+
+FILA CORE (65): 아우터 21 · 쇼츠/팬츠 18 · 스커트 12 · 폴로 7 · 드레스 4 · 맨투맨 3
+Diadora CORE (84): 쇼츠 46 (색상 variant 포함 테니스타/FIBRAZERO/컴피 쇼츠 대거 포함) · 스커트 27 · 아우터 7 · 드레스 4
+
+#### Diadora 상품컷 오버라이드 (2026-04-24)
+Diadora는 Cafe24 JSON-LD `image` 배열에 `[0] main` + `[1~] extra` 구조인데, **일부 상품의 [0]이 모델컷**이라 상품만 보이는 이미지로 교체 필요. 파일명이 32자 해시라 URL 패턴으로는 자동 구분 불가 → **사용자 수기 선택 방식** 채택.
+
+- **`diadora_image_audit.py`** (신규) — 추천 81건 × 모든 상세 이미지(425장) 수집 → 단일 HTML로 이미지 클릭 선택 UI 제공
+  - `fetch_product_images()` : JSON-LD 파싱으로 image 배열 추출 (concurrent, httpx)
+  - `.diadora_audit_cache/` 로컬 JPEG 캐시 + data URL 임베드
+  - 클릭 선택 → localStorage 저장 → JSON export 기능 내장
+  - 초기 pre-filled 사용자 지정 20건은 초록 ✓ 체크로 표시
+- **`diadora_still_overrides.json`** (신규) — 상품명 → 사용할 이미지 index 매핑
+  - 사용자가 HTML 클릭·JSON export 후 저자에게 전달 → `overrides` 키에 병합
+  - 현재 **20건 확정** (모두 index=2, `extra/big/YYYYMMDD/`의 2번째 이미지 = 상품컷)
+- **`extract_fila_diadora_recommendations.py`** 보강
+  - Diadora extract 시 오버라이드 있으면 `fetch_product_images()`로 JSON-LD 재조회 → `images[idx]`를 상품컷으로 사용
+  - FILA/Diadora 폴더 전체 삭제 후 재생성 (멱등성·중복 누적 방지)
+
+**오버라이드 확정 20건**: 메쉬 플리츠 테니스 원피스/에르미나 테니스 원피스/레거시·아이콘 트랙 자켓/메쉬 플리츠 스커트/클래식 테니스 PK 스커트·카라 반팔티/코트 스트라이프·테니스 코트 반팔티/[DIADORA by PALMES] 하프 집업 맨투맨/헤비웨이트 워싱 맨투맨/이지 무빙 테니스 반팔티/테니스타 크롭 반팔 피스테 (모두 index=2)
+
+#### 추천 이미지 PNG 배치 추출 (`extract_fila_diadora_recommendations.py`)
+```
+recommendations_fila_diadora/          ← Court Active TH4 승격 후 최종 수치
+├── FILA/
+│   ├── CORE_직접부합/        65장 (⭐ 그대로 얹을 수 있는 상품)
+│   └── ADAPT_타키니화가능/    39장 (✨ 실루엣·디테일 참조 후 전환)
+└── Diadora/
+    ├── CORE_직접부합/        84장
+    └── ADAPT_타키니화가능/    43장
+```
+- 파일명: `{탭}__{소분류}__{상품명}.png` (Windows 금지문자 치환, 80자 제한)
+- 총 **231장** (FILA 104 + Diadora 127), 원본 해상도 PNG
+- 실패 0건 · Diadora 20건은 `diadora_still_overrides.json` 반영 (상품컷 index=2로 교체)
+- `line_matrix.py`의 `_fetch_with_retry()` 재사용 + PIL로 JPEG→PNG 변환
+- **플랫 폴더**(`recommendations_fila_diadora_flat/`) 231장 동기화 — 단일 폴더 브라우징용
+
+#### 매트릭스 노출 (스포츠 라인 급증)
+| 탭 | 클래식 | 어슬레져 | 스포츠 | 증감 |
+|---|---:|---:|---:|---:|
+| 아우터 | 148 | 102 | **94** | +78 |
+| 폴로 | 52 | 19 | **14** | +7 |
+| 티셔츠 및 롱슬리브 | 77 | 50 | **201** | +176 |
+| 드레스 | 55 | 46 | **14** | +8 |
+| 스커트 | 42 | 79 | **63** | +39 |
+| 맨투맨 및 후디 | 91 | 31 | **35** | +26 |
+| 스웨터 | 100 | 30 | **1** | +1 |
+| 팬츠 및 쇼츠 | 222 | 160 | **155** | +123 |
+| **합계** | 787 | 517 | **577** | **+458** |
+
+→ 매트릭스 노출 1,881건 (14브랜드 체계, index.html 23.7MB)
 
 ### ✅ Step 11 — Supabase 실시간 협업 연동 + MD PICK 네이밍 (완료, 2026-04-22)
 

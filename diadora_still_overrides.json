@@ -1,0 +1,28 @@
+{
+  "_comment": "Diadora 상품컷 이미지 index 오버라이드 — JSON-LD image 배열에서 사용할 인덱스. 없으면 기본 0을 사용.",
+  "_usage": "{상품명: index}. 0 = main (/web/product/big/), 1~ = extra (/web/product/extra/big/). index 2는 보통 extra의 2번째 이미지.",
+  "_updated_by_user": "2026-04-24",
+
+  "overrides": {
+    "메쉬 플리츠 테니스 원피스 VIOLET": 2,
+    "에르미나 테니스 원피스 BLACK": 2,
+    "에르미나 테니스 원피스 WHITE": 2,
+    "레거시 트랙 자켓 BEIGE": 2,
+    "레거시 트랙 자켓 BLUE": 2,
+    "아이콘 트랙 자켓 BLACK": 2,
+    "아이콘 트랙 자켓 CHARCOAL GREY": 2,
+    "아이콘 트랙 자켓 IVORY": 2,
+    "메쉬 플리츠 스커트 BLACK": 2,
+    "메쉬 플리츠 스커트 YELLOW": 2,
+    "클래식 테니스 PK 스커트 GREEN": 2,
+    "코트 스트라이프 카라 반팔 티셔츠 DENIM": 2,
+    "코트 스트라이프 카라 반팔 티셔츠 VIOLET": 2,
+    "테니스 코트 반팔 티셔츠 VIOLET": 2,
+    "[DIADORA by PALMES] 하프 집업 맨투맨 MELANGE GREY": 2,
+    "헤비웨이트 워싱 맨투맨 VIOLET": 2,
+    "이지 무빙 테니스 반팔 티셔츠 WHITE": 2,
+    "클래식 테니스 PK 카라 반팔 티셔츠 OFF WHITE": 2,
+    "클래식 테니스 PK 카라 반팔 티셔츠 우먼 OFF WHITE": 2,
+    "테니스타 크롭 반팔 피스테 우먼 OFF WHITE": 2
+  }
+}

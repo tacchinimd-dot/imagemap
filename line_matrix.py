@@ -227,7 +227,7 @@ ALLOWED_EMAIL_DOMAIN = "@fnfcorp.com"
 LINES = [
     ("classic",  "클래식",    "#2E7D32",  ["lacoste", "rl", "celine", "loropiana", "sportyandrich"]),
     ("athleisure","어슬레져",  "#1E40AF",  ["alo", "lululemon", "skims", "miumiu", "prada"]),
-    ("sport",    "스포츠",    "#DC2626",  ["wilson", "descente"]),
+    ("sport",    "스포츠",    "#DC2626",  ["wilson", "descente", "fila", "diadora"]),
 ]
 BRAND_LABEL = {
     "alo": "Alo", "wilson": "Wilson", "lacoste": "Lacoste", "rl": "Ralph Lauren",
@@ -235,6 +235,7 @@ BRAND_LABEL = {
     "celine": "Celine", "loropiana": "Loro Piana",
     "skims": "Skims", "miumiu": "Miu Miu", "prada": "Prada",
     "sportyandrich": "Sporty & Rich",
+    "fila": "FILA", "diadora": "Diadora",
 }
 
 # ── 핏 3개 열 (기본: 상의·기타) ─────────────────────────────────────────────
@@ -720,6 +721,47 @@ def load_miumiu() -> list[dict]:
     return items
 
 
+def load_fila() -> list[dict]:
+    """FILA: 스포츠 라인. Shopify 한글 헤더 xlsx (FILA Korea products.json 기반)."""
+    path = latest("fila_crawler/fila_new_arrivals_*_vision.xlsx")
+    if not path:
+        path = latest("fila_crawler/fila_new_arrivals_*.xlsx")
+    return _load_xlsx_kor(path, "fila") if path else []
+
+
+def load_diadora() -> list[dict]:
+    """Diadora: 스포츠 라인. 혼합 헤더 (한글 대분류/상품명/URL + 영문 VISION_*).
+    의류만 필터 (대분류='의류'). 소분류 오버라이드는 없음 (사용자 수기 전에 미적용)."""
+    path = latest("diadora_crawler/diadora_products_*_vision.xlsx")
+    if not path:
+        return []
+    wb = load_workbook(path, data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    h = [str(x).strip() if x else "" for x in rows[0]]
+    idx = {c: h.index(c) for c in h if c}
+    sub_ov = get_sub_overrides()
+    items = []
+    for r in rows[1:]:
+        if str(r[idx["대분류"]] or "").strip() != "의류":
+            continue
+        name = str(r[idx["상품명"]] or "").strip()
+        raw_sub = str(r[idx["소분류"]] or "").strip()
+        sub = sub_ov.get(("diadora", name), raw_sub)
+        items.append({
+            "brand": "diadora",
+            "name": name,
+            "sub_raw": sub,
+            "fit_raw": str(r[idx.get("VISION_FIT", -1)] or "").strip() if idx.get("VISION_FIT", -1) >= 0 else "",
+            "pleats_raw": str(r[idx.get("VISION_PLEATS", -1)] or "").strip() if idx.get("VISION_PLEATS", -1) >= 0 else "",
+            "silhouette_raw": str(r[idx.get("VISION_SILHOUETTE", -1)] or "").strip() if idx.get("VISION_SILHOUETTE", -1) >= 0 else "",
+            "length_raw": str(r[idx.get("VISION_LENGTH", -1)] or "").strip() if idx.get("VISION_LENGTH", -1) >= 0 else "",
+            "image_url": str(r[idx["대표 이미지 URL"]] or "").strip(),
+            "product_url": str(r[idx["상품 URL"]] or "").strip(),
+        })
+    return items
+
+
 def load_prada() -> list[dict]:
     """Prada: 어슬레져 라인. 영문 대문자 헤더. 의류만 필터 (가방/액세서리 제외)."""
     path = latest("prada_crawler/prada_new_in_*_vision.xlsx")
@@ -1098,22 +1140,35 @@ def classify_st_match(item: dict, tab: str) -> str | None:
         return None
 
     # ── ⭐ CORE: 브랜드 그룹 ─────────────────────────────────────
-    # TH2 = 순수 테니스 브랜드 (Lacoste, Wilson) — 무조건 매칭
-    # SR  = Sporty & Rich — 헤리티지 스포츠 브랜드, 키워드 필터 적용 (볼륨 큼)
-    th2 = brand in ("lacoste", "wilson")
+    # TH4 = Court Active 테니스·코트 스포츠 헤리티지 브랜드 (2026-04-24 FILA/Diadora 승격)
+    #       Lacoste(폴로 발명), Wilson(테니스 장비 오리진), FILA(이탈리안 테니스), Diadora(이탈리안 테니스)
+    #       → 폴로·스커트·쇼츠·드레스 탭에서 무조건 CORE 매칭 (키워드 불필요)
+    # SR  = Sporty & Rich — heritage lifestyle (Court Active 아님), 키워드 필터 유지
+    # SPH = FILA + Diadora 별도 키워드 세트 (아우터·맨투맨·티셔츠에서 브랜드 특화 판정용)
+    th4 = brand in ("lacoste", "wilson", "fila", "diadora")
     is_sr = brand == "sportyandrich"
+    is_sph = brand in ("fila", "diadora")
 
-    # 폴로 (플레잉폴로 계보)
+    # FILA/Diadora 특화 키워드 (한국어 중심 스포츠 헤리티지)
+    # TH4 승격 후에도 아우터/맨투맨/티셔츠의 세부 판정에서 사용
+    sph_kw = any(k in name for k in (
+        "tennis", "court", "track", "pleat", "classic", "essential",
+        "italia", "italian", "heritage", "club", "retro", "varsity",
+        "pique", "piqué", "바람막이", "테니스", "코트", "트랙", "클래식",
+        "플리츠", "헤리티지", "카라티", "카라 티", "폴리피케", "피케",
+        "니트트랙", "링거", "레터링"))
+
+    # 폴로 (플레잉폴로 계보) — TH4 무조건
     if tab == "polo":
-        if th2:
+        if th4:
             return "core"
         if is_sr and st_kw:
             return "core"
         return None
 
-    # 스커트 (플라잉스커트 계보)
+    # 스커트 (플라잉스커트 계보) — TH4 무조건
     if tab == "skirt":
-        if th2:
+        if th4:
             return "core"
         if is_sr and (st_kw or has_pleats):
             return "core"
@@ -1121,13 +1176,16 @@ def classify_st_match(item: dict, tab: str) -> str | None:
             return "core"
         return None
 
-    # 쇼츠 (에센셜쇼츠 계보)
+    # 쇼츠 (에센셜쇼츠 계보) — TH4 쇼츠 무조건
     if tab == "bottom":
         is_shorts = "쇼츠" in sub
-        if is_shorts and th2:
+        if is_shorts and th4:
             return "core"
         if is_shorts and is_sr and st_kw:
             return "core"
+        # FILA/Diadora 기타 바지(팬츠·레깅스) — 트랙 팬츠 등 레트로 스포츠 참조는 ADAPT
+        if is_sph and (st_kw or sph_kw):
+            return "adapt"
         return None
 
     # 아우터 (쿠쉬라이트 경량 우븐 · 특정 실루엣 키워드만)
@@ -1137,15 +1195,18 @@ def classify_st_match(item: dict, tab: str) -> str | None:
              "트랙", "크롭", "바람막이", "봄버"))
         if kushlight_kw:
             return "core"
+        # FILA/Diadora 기타 아우터(카디건/집업 등)는 스포츠 클럽웨어 참조 ADAPT
+        if is_sph and (st_kw or sph_kw):
+            return "adapt"
         return None
 
     # 드레스 (§6.8 Cotton Blend Jersey × Active Slim × Mini Dress 실험 방향)
-    # ⭐: 테니스 헤리티지 브랜드(Lacoste/SR/Wilson/RL)의 미니·미디 드레스 — 폴로/테니스 드레스
+    # ⭐: TH4 + SR + RL 의 미니·미디 드레스 — 테니스/폴로/코트 헤리티지 드레스
     # ⭐: 그 외 브랜드도 tennis/polo/court/classic 키워드 있으면 포함
     if tab == "dress":
         if length == "맥시":
             return None  # 맥시는 ST 방향과 거리 있음
-        if th2 or is_sr or brand == "rl":
+        if th4 or is_sr or brand == "rl":
             if length in ("미니", "미디"):
                 return "core"
             return None
@@ -1161,15 +1222,24 @@ def classify_st_match(item: dict, tab: str) -> str | None:
 
     # 맨투맨 (French Terry 클럽웨어 · SR/Lacoste + 레트로 키워드)
     if tab == "sweat":
-        if brand in ("sportyandrich", "lacoste"):
-            if any(k in name for k in
-                   ("track", "classic", "varsity", "college", "retro",
-                    "italia", "riviera", "club", "heritage",
-                    "트랙", "클래식", "레트로")):
+        retro_kw = any(k in name for k in
+               ("track", "classic", "varsity", "college", "retro",
+                "italia", "riviera", "club", "heritage",
+                "트랙", "클래식", "레트로"))
+        if brand in ("sportyandrich", "lacoste") and retro_kw:
+            return "core"
+        # FILA/Diadora 맨투맨 — 레트로 키워드 있으면 CORE, 그 외는 참조용 ADAPT
+        if is_sph:
+            if retro_kw or sph_kw:
                 return "core"
+            return "adapt"
         return None
 
-    # 티셔츠·스웨터 → 전면 제외 (시그니쳐 미확립 + RA5 배제 원칙)
+    # 티셔츠·스웨터 → 기본 제외 (시그니쳐 미확립 + RA5 배제 원칙)
+    # 예외: FILA/Diadora의 테니스·트랙·레트로 키워드 티셔츠는 ADAPT (로고티는 제외)
+    if tab in ("tee", "sweater") and is_sph:
+        if sph_kw and not any(k in name for k in ("logo", "로고", "프린트")):
+            return "adapt"
     return None
 
 
@@ -3529,6 +3599,7 @@ def main():
         load_alo() + load_wilson() + load_lacoste() + load_rl()
         + load_descente() + load_lululemon() + load_celine() + load_loropiana()
         + load_skims() + load_miumiu() + load_prada() + load_sportyandrich()
+        + load_fila() + load_diadora()
     )
     print(f"  의류 상품 총 {len(items)}개")
 

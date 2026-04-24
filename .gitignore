@@ -1,6 +1,11 @@
 # 이미지 캐시 (대용량, 재생성 가능)
 .image_cache/
 .image_cache_hires/
+.diadora_audit_cache/
+
+# 추천 PNG 배치 (대용량 · index.html에 data URL 임베드됨 · 재생성 가능)
+recommendations_fila_diadora/
+recommendations_fila_diadora_flat/
 
 # Python
 __pycache__/
